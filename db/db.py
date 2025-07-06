@@ -2,8 +2,10 @@
 from sqlmodel import create_engine, SQLModel, Session
 from settings import app_settings
 
+from schemas import Category, Product
+
 connect_args = {"check_same_thread": False}
-engine = create_engine(app_settings.SQLite_URL, connect_args=connect_args)
+engine = create_engine(app_settings.SQLite_URL, connect_args=connect_args, echo=True)
 
 
 def create_db_and_tables():
