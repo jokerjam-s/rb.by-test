@@ -16,8 +16,34 @@ def get_session():
     session = Session(bind=engine)
     return session
 
-# def get_session():
-#     with Session(engine) as session:
-#         yield session
-#
-# SessionDep = get_session()
+
+async def clear_tables():
+    """
+    Очистка таблиц базы данных.
+    :return:
+    """
+    with get_session() as session:
+        session.query(Product).delete()
+        session.query(Category).delete()
+
+
+async def fill_categories(categories: list[Category]):
+    """
+    Заполняет таблицу категорий новыми значениями,
+    :param categories: Новый список категорий
+    :return:
+    """
+    with get_session() as session:
+        session.add_all(categories)
+        session.commit()
+
+
+async def fill_products(products: list[Product]):
+    """
+    Заполняет таблицу товаров новыми значениями,
+    :param products: Новый список товаров
+    :return:
+    """
+    with get_session() as session:
+        session.add_all(products)
+        session.commit()

@@ -1,16 +1,13 @@
-from itertools import product
-from sys import stderr
-
 import uvicorn
 from aiohttp import ClientSession
 from fastapi import FastAPI
 
 from settings import AppSettings
-from db import create_db_and_tables, get_session
-from parser import get_list_categories, load_categories, load_products
+from db import create_db_and_tables, fill_categories, fill_products
+from parser import load_list_categories, load_categories, load_products
 
 app = FastAPI()
-RESULT_MESSAGE = 'Ok'
+_RESULT_MESSAGE = []
 
 
 @app.get("/")
@@ -23,30 +20,31 @@ async def start():
     create_db_and_tables()
     async with ClientSession() as sessionHttp:
         try:
-            categories_wb = await get_list_categories(AppSettings.CATEGORIES_URL, sessionHttp)
+            categories_wb = await load_list_categories(AppSettings.CATEGORIES_URL, sessionHttp)
             categories = await load_categories(categories_wb)
         except Exception as e:
-            stderr.write(str(e))
-            RESULT_MESSAGE = f'Ошибка: {e}'
+            _RESULT_MESSAGE.append(e)
         else:
-            sessionDb = get_session()
-            for category in categories:
-                sessionDb.add(category)
-            sessionDb.commit()
+            await fill_categories(categories)
 
             for category in categories:
-                try:
-                    products = await load_products(category, sessionHttp)
-                    for product in products:
-                        sessionDb.add(product)
-                    sessionDb.commit()
-                except Exception as e:
-                    sessionDb.rollback()
-                    RESULT_MESSAGE = f'Ошибка: {e}'
-                    stderr.write(str(e))
+                products = []
+                page_no = 1
+                running = True
+                while running:
+                    try:
+                        url = f'https://catalog.wb.ru/catalog/{category.shardKey}/v2/catalog?ab_testing=false&appType=1&cat={category.id}&dest=-3628814&hide_dtype=13&lang=ru&page={page_no}'
+                        products_wb = await load_list_categories(url, sessionHttp)
+                        prods = await load_products(products_wb, category)
+                        products.extend(prods)
+                        page_no += 1
+                        print(page_no)
+                    except Exception as e:
+                        _RESULT_MESSAGE.append(e)
+                        running = False
+                await fill_products(products)
 
-            # sessionDb.commit()
-    return {"Result": RESULT_MESSAGE}
+    return {"Result": _RESULT_MESSAGE}
 
 
 @app.get("/health")
