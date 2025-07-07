@@ -1,25 +1,37 @@
 """Категории товаров"""
 import decimal
-from typing import List, Optional
 
 from sqlmodel import Field, SQLModel, Relationship
 
 
 class Category(SQLModel, table=True):
-    id: int = Field(primary_key=True)
+    id: str = Field(max_length=10, primary_key=True)
     name: str = Field(index=True)
-    shard: str = Field(nullable=True)
-    parent: int = Field(nullable=True)
+    shardKey: str = Field(nullable=True)
+    rawQuery: str = Field(nullable=True)
     query: str = Field(nullable=True)
     url: str
-    products: List['Product'] = Relationship(back_populates='category')
 
 
 class Product(SQLModel, table=True):
-    id: int = Field(primary_key=True)
+    """
+    Товары.
+
+    price_basic: базовая стоимость
+    price_prod: стоимость единицы продукции
+    price_total: общая стоимость
+    price_log: расходы на логистику
+    rating: рейтинг
+    feedbacks: кол-во отзывов
+    quantity: количество в наличии
+    """
+    id: str = Field(max_length=10, nullable=False, primary_key=True)
     name: str = Field(index=True)
-    price: decimal.Decimal = Field(nullable=True)
-    discont_price: decimal.Decimal = Field(nullable=True)
-    rate: int = Field(nullable=True)
-    rewiev_amount: int = Field(nullable=True)
-    category_id: int = Field(nullable=True, foreign_key='category.id')
+    price_basic: decimal.Decimal = Field(nullable=True)
+    price_prod: decimal.Decimal = Field(nullable=True)
+    price_total: decimal.Decimal = Field(nullable=True)
+    price_log: decimal.Decimal = Field(nullable=True)
+    rating: decimal.Decimal = Field(nullable=True)
+    feedbacks: int = Field(nullable=True)
+    quantity: int = Field(nullable=True)
+    category_id: str = Field(max_length=10, nullable=True, foreign_key='category.id',primary_key=True)
