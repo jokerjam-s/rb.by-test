@@ -1,53 +1,90 @@
 import uvicorn
-from aiohttp import ClientSession
 from fastapi import FastAPI
+from requests import Session
+from starlette.responses import HTMLResponse, RedirectResponse
 
 from settings import AppSettings
-from db import create_db_and_tables, fill_categories, fill_products
-from parser import load_list_categories, load_categories, load_products
+from db import create_db_and_tables, fill_categories, get_db_session, get_products_by_category_id, get_categories, \
+    get_products_by_category_name
+from parser import load_list_categories, load_categories, load_products_to_db
 
 app = FastAPI()
-_RESULT_MESSAGE = []
 
 
-@app.get("/")
+def make_response(error, data):
+    return {'error': error, 'data': data}
+
+
+@app.get("/", include_in_schema=False)
 async def root():
-    return "Перейдите на /start для запуска сбора информации."
+    return HTMLResponse("<a href='/load-data'>Сбор информации с WB.RU</a>.<br>" +
+                        "<a href='/show-category-list'>Список категорий</a><br>" +
+                        "<a href='/docs'>Swagger API</a>"
+                        )
 
 
-@app.get("/start")
+@app.get("/load-data")
 async def start():
+    """
+    Получение списка категорий товаров WB и сохранение их в базе данных.
+    """
     create_db_and_tables()
-    async with ClientSession() as sessionHttp:
+    with Session() as session_http:
         try:
-            categories_wb = await load_list_categories(AppSettings.CATEGORIES_URL, sessionHttp)
-            categories = await load_categories(categories_wb)
+            categories_wb = load_list_categories(AppSettings.CATEGORIES_URL, session_http)
+            categories = load_categories(categories_wb)
         except Exception as e:
-            _RESULT_MESSAGE.append(e)
+            return make_response(str(e), [])
         else:
-            await fill_categories(categories)
+            fill_categories(categories)
+            load_products_to_db(get_db_session(), session_http)
 
-            for category in categories:
-                products = []
-                page_no = 1
-                running = True
-                while running:
-                    try:
-                        url = f'https://catalog.wb.ru/catalog/{category.shardKey}/v2/catalog?ab_testing=false&appType=1&cat={category.id}&dest=-3628814&hide_dtype=13&lang=ru&page={page_no}'
-                        products_wb = await load_list_categories(url, sessionHttp)
-                        prods = await load_products(products_wb, category)
-                        products.extend(prods)
-                        page_no += 1
-                        print(page_no)
-                    except Exception as e:
-                        _RESULT_MESSAGE.append(e)
-                        running = False
-                await fill_products(products)
-
-    return {"Result": _RESULT_MESSAGE}
+    return RedirectResponse('/show-category-list')
 
 
-@app.get("/health")
+@app.get("/show-category-list")
+async def show_category_list():
+    response = '''<h1>Отобрано категорий</h1>
+        <table><thead>
+         <tr>
+         <th>ID</th> <th>Название</th>
+         </tr>
+         </thead><tbody>'''
+
+    categories = get_categories()
+    for category in categories:
+        response += '<tr><td>' + str(category.id) + '</td><td>' + category.name + '</td></tr>'
+
+    response += '</tbody></table>'
+    return HTMLResponse(response)
+
+
+@app.get("/prods-by-category-id")
+async def prods_by_category_id(category_id: int, offset: int = 0, limit: int = 100):
+    """
+    Получение списка товаров, принадлежащих указанной категории в JSON
+    """
+    try:
+        products = get_products_by_category_id(category_id, offset, limit)
+    except Exception as e:
+        return make_response(str(e), [])
+
+    return make_response('', products)
+
+
+@app.get("/products-by-category-name")
+async def products_by_category_name(category_name: str, offset: int = 0, limit: int = 100):
+    """
+    Получение списка товаров, попадающих в категории имя которых содержит category_name.
+    """
+    try:
+        products = get_products_by_category_name(category_name, offset, limit)
+    except Exception as e:
+        return make_response(str(e), [])
+    return make_response('', products)
+
+
+@app.get("/health", include_in_schema=False)
 async def health():
     return {"message": "Hello, i'm fine. How are you?"}
 
