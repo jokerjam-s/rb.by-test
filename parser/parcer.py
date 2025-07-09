@@ -18,7 +18,7 @@ def load_list_categories(url: str, session: Session = None) -> list[dict]:
     """
     Чтение списка словарей с категориями товаров с сайта WB.
     :param url: Строка запроса
-    :param session: aiohttp сессия ClientSession, по умолч. None - будет создана автоматически
+    :param session: requests сессия Session, по умолч. None - будет создана автоматически
     :return: Список словарей или выброс исключения WB_CATEGORY_ERROR при ошибке получения данных
     """
     result = []
