@@ -142,6 +142,8 @@ def load_products_to_db(db_session: sqlmodel.Session, session_http: Session = No
     Загрузка товаров в БД.
     :return:
     """
+    session_http = session_http or Session()
+    
     with db_session:
         statement = select(Category)
         result = db_session.exec(statement)
