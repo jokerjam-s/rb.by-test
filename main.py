@@ -1,3 +1,5 @@
+import decimal
+
 import uvicorn
 from fastapi import FastAPI
 from requests import Session
@@ -5,7 +7,7 @@ from starlette.responses import HTMLResponse, RedirectResponse
 
 from settings import AppSettings
 from db import create_db_and_tables, fill_categories, get_db_session, get_products_by_category_id, get_categories, \
-    get_products_by_category_name
+    get_products_by_category_name, get_products_filtered
 from parser import load_list_categories, load_categories, load_products_to_db
 
 app = FastAPI()
@@ -82,6 +84,26 @@ async def products_by_category_name(category_name: str, offset: int = 0, limit: 
     except Exception as e:
         return make_response(str(e), [])
     return make_response('', products)
+
+
+@app.get('/products')
+async def products_filtered(
+        min_price: decimal.Decimal = 0,
+        min_rating: decimal.Decimal = 0,
+        min_feedbacks: int = 10,
+        offset: int = 0,
+        limit: int = 100,
+):
+    """
+    Эндпоинт /api/products/ с поддержкой фильтрации:
+    По цене, рейтингу, количеству отзывов.
+    """
+    try:
+        products = get_products_filtered(min_price, min_rating, min_feedbacks, offset, limit)
+    except Exception as e:
+        return make_response(str(e), [])
+    return make_response('', products)
+
 
 
 @app.get("/health", include_in_schema=False)

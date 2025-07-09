@@ -1,5 +1,7 @@
 """Управление БД."""
-from sqlmodel import create_engine, SQLModel, Session, select
+import decimal
+
+from sqlmodel import create_engine, SQLModel, Session, select, and_
 
 from exceptions import CATEGORY_BY_ID_NOT_EXIST, CATEGORY_BY_NAME_NOT_EXIST
 from settings import AppSettings
@@ -81,6 +83,37 @@ def get_products_by_category_name(name: str, offset: int, limit: int) -> list[Pr
 
         ids = [c.id for c in categories]
         statement = select(Product).where(Product.category_id.in_(ids)).offset(offset).limit(limit)
+        result = session.exec(statement).all()
+
+    result = list(result)
+    return result
+
+
+def get_products_filtered(
+        min_price: decimal.Decimal,
+        min_rating: decimal.Decimal,
+        min_feedbacks: int,
+        offset: int,
+        limit: int,
+):
+    """
+    Список товаров с фильтрацией.
+    :param min_price:
+    :param min_rating:
+    :param min_feedbacks:
+    :param offset:
+    :param limit:
+    :return:
+    """
+    with get_db_session() as session:
+        statement = select(Product).where(
+            and_(
+                Product.price_prod >= min_price,
+                Product.feedbacks >= min_feedbacks,
+                Product.rating >= min_rating,
+            )
+        ).offset(offset).limit(limit)
+
         result = session.exec(statement).all()
 
     result = list(result)

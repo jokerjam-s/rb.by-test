@@ -9,4 +9,5 @@ __all__ = [
     get_products_by_category_id,
     get_products_by_category_name,
     get_categories,
+    get_products_filtered,
 ]
